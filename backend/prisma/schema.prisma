@@ -9,9 +9,99 @@ datasource db {
 
 model OperationRecord {
   id         Int      @id @default(autoincrement())
-  moduleName String
-  ownerName  String
+  moduleName String   @map("module_name")
+  ownerName  String   @map("owner_name")
   status     String
   metric     String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("operation_records")
+}
+
+model Store {
+  id             Int                @id @default(autoincrement())
+  code           String             @unique
+  name           String
+  createdAt      DateTime           @default(now()) @map("created_at")
+  inventoryItems InventoryItem[]
+  stocktakeOrders StocktakeOrder[]
+  movements      InventoryMovement[]
+
+  @@map("stores")
+}
+
+model Product {
+  id             Int                @id @default(autoincrement())
+  sku            String             @unique
+  name           String
+  spec           String
+  category       String
+  createdAt      DateTime           @default(now()) @map("created_at")
+  inventoryItems InventoryItem[]
+  stocktakeLines StocktakeLine[]
+  movements      InventoryMovement[]
+
+  @@map("products")
+}
+
+model InventoryItem {
+  id            Int      @id @default(autoincrement())
+  storeId       Int      @map("store_id")
+  productId     Int      @map("product_id")
+  quantity      Int
+  frozenOrderId Int?     @map("frozen_order_id")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  store         Store    @relation(fields: [storeId], references: [id])
+  product       Product  @relation(fields: [productId], references: [id])
+
+  @@unique([storeId, productId])
+  @@map("inventory_items")
+}
+
+model StocktakeOrder {
+  id          Int             @id @default(autoincrement())
+  orderNo     String          @unique @map("order_no")
+  requestKey  String          @unique @map("request_key")
+  storeId     Int             @map("store_id")
+  status      String
+  operator    String
+  startedAt   DateTime        @default(now()) @map("started_at")
+  completedAt DateTime?       @map("completed_at")
+  cancelledAt DateTime?       @map("cancelled_at")
+  store       Store           @relation(fields: [storeId], references: [id])
+  lines       StocktakeLine[]
+
+  @@map("stocktake_orders")
+}
+
+model StocktakeLine {
+  id             Int           @id @default(autoincrement())
+  orderId        Int           @map("order_id")
+  productId      Int           @map("product_id")
+  bookQuantity   Int           @map("book_quantity")
+  actualQuantity Int?          @map("actual_quantity")
+  difference     Int?
+  order          StocktakeOrder @relation(fields: [orderId], references: [id])
+  product        Product       @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId])
+  @@map("stocktake_lines")
+}
+
+model InventoryMovement {
+  id           Int      @id @default(autoincrement())
+  storeId      Int      @map("store_id")
+  productId    Int      @map("product_id")
+  changeType   String   @map("change_type")
+  quantity     Int
+  balanceAfter Int      @map("balance_after")
+  refType      String?  @map("ref_type")
+  refId        Int?     @map("ref_id")
+  operator     String
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  store        Store    @relation(fields: [storeId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@map("inventory_movements")
 }
