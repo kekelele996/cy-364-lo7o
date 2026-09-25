@@ -7,11 +7,125 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model OperationRecord {
-  id         Int      @id @default(autoincrement())
-  moduleName String
-  ownerName  String
-  status     String
-  metric     String
-  createdAt  DateTime @default(now())
+/// 门店
+model Store {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  manager   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  inventories  StoreInventory[]
+  stocktakes   Stocktake[]
+  transactions InventoryTransaction[]
+
+  @@map("stores")
+}
+
+/// 商品 SKU 主数据
+model Product {
+  id        Int      @id @default(autoincrement())
+  sku       String   @unique
+  name      String
+  spec      String
+  barcode   String   @unique
+  category  String
+  unit      String   @default("件")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  inventories  StoreInventory[]
+  stockItems   StocktakeItem[]
+  transactions InventoryTransaction[]
+
+  @@map("products")
+}
+
+/// 门店库存（一个门店 + 一个商品一行）
+model StoreInventory {
+  id        Int      @id @default(autoincrement())
+  storeId   Int      @map("store_id")
+  productId Int      @map("product_id")
+  quantity  Int      @default(0)
+  safetyQty Int      @default(0) @map("safety_qty")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  store   Store   @relation(fields: [storeId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([storeId, productId])
+  @@map("store_inventories")
+}
+
+enum StocktakeStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// 盘点单
+model Stocktake {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique
+  storeId     Int              @map("store_id")
+  status      StocktakeStatus  @default(IN_PROGRESS)
+  remark      String?
+  startedAt   DateTime         @default(now()) @map("started_at")
+  finishedAt  DateTime?        @map("finished_at")
+  createdBy   String           @default("店长") @map("created_by")
+  completedBy String?          @map("completed_by")
+
+  store Store            @relation(fields: [storeId], references: [id])
+  items StocktakeItem[]
+
+  @@index([storeId, status])
+  @@map("stocktakes")
+}
+
+enum CountStatus {
+  PENDING
+  COUNTED
+}
+
+/// 盘点单商品行：账面数在开始时快照，实盘数中途保存、提交时确认
+model StocktakeItem {
+  id           Int         @id @default(autoincrement())
+  stocktakeId  Int         @map("stocktake_id")
+  productId    Int         @map("product_id")
+  /// 开始盘点时的账面库存快照（盘盈盘亏以此计算，不随后续读取变化）
+  bookQuantity Int         @map("book_quantity")
+  /// 实盘数：未录入时为 null（中途退出保留为空）
+  countedQty   Int?        @map("counted_qty")
+  countStatus  CountStatus @default(PENDING) @map("count_status")
+  /// 本次确认的盘盈盘亏（实盘 - 账面），确认后写入
+  variance     Int?        @map("variance")
+  countedAt    DateTime?   @map("counted_at")
+
+  stocktake Stocktake @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([stocktakeId, productId])
+  @@map("stocktake_items")
+}
+
+/// 出入库 / 调整流水
+model InventoryTransaction {
+  id        Int      @id @default(autoincrement())
+  storeId   Int      @map("store_id")
+  productId Int      @map("product_id")
+  /// INBOUND 入库 / OUTBOUND 出库 / ADJUST 盘点调整
+  type      String
+  /// 带符号的变动数量（入库为正、出库为负、调整可正可负）
+  changeQty Int      @map("change_qty")
+  /// 变动后的库存结余
+  balance   Int
+  reason    String
+  refCode   String?  @map("ref_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @default("系统") @map("created_by")
+
+  store   Store   @relation(fields: [storeId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([storeId, createdAt])
+  @@map("inventory_transactions")
 }

@@ -4,26 +4,36 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "dev": "ts-node src/main.ts"
+    "dev": "ts-node src/main.ts",
+    "dev:pglite": "ts-node test/dev-server.ts",
+    "prisma:deploy": "prisma migrate deploy",
+    "test:int": "ts-node test/integration.run.ts",
+    "test:http": "ts-node test/http.smoke.ts",
+    "test": "npm run test:int && npm run test:http"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.cjs"
   },
   "dependencies": {
-    "@nestjs/common": "^10.4.15",
-    "@nestjs/core": "^10.4.15",
-    "@nestjs/platform-express": "^10.4.15",
-    "@nestjs/config": "^3.3.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "@prisma/client": "^6.1.0",
-    "class-validator": "^0.14.1",
-    "class-transformer": "^0.5.1",
-    "jsonwebtoken": "^9.0.2"
+    "@nestjs/common": "10.4.15",
+    "@nestjs/core": "10.4.15",
+    "@nestjs/platform-express": "10.4.15",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.1",
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3",
+    "class-validator": "0.14.1",
+    "class-transformer": "0.5.1",
+    "jsonwebtoken": "9.0.2"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
-    "typescript": "^5.7.2",
-    "ts-node": "^10.9.2",
-    "prisma": "^6.1.0"
+    "@types/node": "22.10.5",
+    "@types/express": "4.17.21",
+    "typescript": "5.7.2",
+    "ts-node": "10.9.2",
+    "@electric-sql/pglite": "0.2.17",
+    "@prisma/driver-adapter-utils": "6.19.3"
   }
 }
